@@ -6,14 +6,14 @@ import util
 
 parser = argparse.ArgumentParser(description="Run commands")
 parser.add_argument('-gpu', '--gpu', default="0", type=str, help='GPU Ids')
-parser.add_argument('-w', '--num-workers', type=int, default=4, help="Number of workers")
+parser.add_argument('-w', '--num-workers', type=int, default=8, help="Number of workers")
 parser.add_argument('-ps', '--num-ps', type=int, default=1, help="Number of parameter servers")
 parser.add_argument('-r', '--remotes', default=None,
                     help='The address of pre-existing VNC servers and rewarders to use'
                     '(e.g. -r vnc://localhost:5900+15900,vnc://localhost:5901+15901).')
 parser.add_argument('-e', '--env-id', type=str, default="maze",
                     help="Environment id")
-parser.add_argument('-l', '--log', type=str, default="/tmp/vpn", 
+parser.add_argument('-l', '--log', type=str, default="/scratch3/sniu/vpn/maze", 
                     help="Log directory path")
 parser.add_argument('-d', '--dry-run', action='store_true',
                     help="Print out commands rather than executing them")
@@ -55,7 +55,7 @@ parser.add_argument('--eps-eval', type=float, default=0.0, help="Epsilon for eva
 # VPN parameters
 parser.add_argument('--prediction-step', type=int, default=3, help="number of prediction steps")
 parser.add_argument('--branch', type=str, default="4,4,4", help="branching factor")
-parser.add_argument('--buf', type=int, default=10**5, help="num of steps for random buffer")
+parser.add_argument('--buf', type=int, default=10**6, help="num of steps for random buffer")
 
 def new_cmd(session, name, cmd, mode, logdir, shell):
     if isinstance(cmd, (list, tuple)):
