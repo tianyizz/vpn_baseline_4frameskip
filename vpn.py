@@ -89,9 +89,9 @@ class VPN(Q):
         """
     given a rollout, compute its returns
     """
-	print ("shape of the roolout states:--------------")
-	print (len(rollout.states))
-	print ((rollout.states[0]).shape)
+	#print ("shape of the roolout states:--------------")
+	#print (len(rollout.states))
+	#print ((rollout.states[0]).shape)
         batch_si = np.asarray(rollout.states)
         batch_a = np.asarray(rollout.actions)
         rewards = np.asarray(rollout.rewards)
