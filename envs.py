@@ -195,7 +195,7 @@ def _process_frame42(frame):
 class AtariRescale84x84(vectorized.ObservationWrapper):
     def __init__(self, env=None):
         super(AtariRescale84x84, self).__init__(env)
-        self.observation_space = Box(0.0, 1.0, [84, 84, 1])
+        self.observation_space = Box(0.0, 1.0, [84, 84, 4])
 
     def _observation(self, observation_n):
         return [_process_frame84gray(observation) for observation in observation_n]

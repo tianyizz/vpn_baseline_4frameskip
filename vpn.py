@@ -89,6 +89,9 @@ class VPN(Q):
         """
     given a rollout, compute its returns
     """
+	print ("shape of the roolout states:--------------")
+	print (len(rollout.states))
+	print ((rollout.states[0]).shape)
         batch_si = np.asarray(rollout.states)
         batch_a = np.asarray(rollout.actions)
         rewards = np.asarray(rollout.rewards)
@@ -143,23 +146,7 @@ class VPN(Q):
         self.v_next_loss_mat = util.huber_loss(util.lower_triangular(
             pi.v_next_a - tf.reshape(self.v_target[1:], [-1, 1])), sum=False)
         self.v_next_loss = tf.reduce_sum(self.v_next_loss_mat)
-        self.loss = self.r_loss + self.gamma_loss + self.v_next_loss 
-
-        # reward/gamma prediction for off-policy data (optional)
-        self.a_off = tf.placeholder(tf.float32, [None, self.env.action_space.n], name="a_off")
-        self.r_off = tf.placeholder(tf.float32, [None], name="r_off") # immediate reward 
-        self.step_off = tf.placeholder(tf.float32, [None], name="step_off") # num of steps
-        
-        self.r_delta_off = util.lower_triangular(
-                    pi.r_off - tf.reshape(self.r_off, [-1, 1]))
-        self.r_loss_mat_off = util.huber_loss(self.r_delta_off, sum=False)
-        self.r_loss_off = tf.reduce_sum(self.r_loss_mat_off)
-
-        self.gamma_loss_mat_off = util.huber_loss(util.lower_triangular(
-                pi.t_off - tf.reshape(self.step_off, [-1, 1])), sum=False)
-        
-        self.gamma_loss_off = tf.reduce_sum(self.gamma_loss_mat_off)
-        self.loss += self.r_loss_off + self.gamma_loss_off 
+        self.loss = self.r_loss + self.gamma_loss + self.v_next_loss  
 
     def prepare_input(self, batch):
         feed_dict = {self.local_network.x: batch.si,
@@ -177,12 +164,12 @@ class VPN(Q):
         if self.args.meta_dim > 0:
             feed_dict[self.local_network.meta] = batch.meta
 
-        traj, initial = self.random_trajectory()
-        feed_dict[self.local_network.x_off] = traj.si
-        feed_dict[self.local_network.a_off] = traj.a
-        feed_dict[self.a_off] = traj.a
-        feed_dict[self.r_off] = traj.reward
-        feed_dict[self.step_off] = traj.step
+        #traj, initial = self.random_trajectory()
+        #feed_dict[self.local_network.x_off] = traj.si
+        #feed_dict[self.local_network.a_off] = traj.a
+        #feed_dict[self.a_off] = traj.a
+        #feed_dict[self.r_off] = traj.reward
+        #feed_dict[self.step_off] = traj.step
         
         if self.local_network.is_recurrent():
             if initial:
@@ -192,23 +179,40 @@ class VPN(Q):
             for i in range(len(self.local_network.state_in_off)):
                 feed_dict[self.local_network.state_in_off[i]] = state_in[i]
 
-        if self.args.meta_dim > 0:
-            feed_dict[self.local_network.meta_off] = traj.meta
+        #if self.args.meta_dim > 0:
+        #    feed_dict[self.local_network.meta_off] = traj.meta
 
         return feed_dict
 
     def random_trajectory(self):
         if not self.rand_rollouts.is_full():
             env = self.env_off
-            state_off = env.reset()
+            temp_D = env.reset()
+	    temp_A=env.reset()
+	    temp_B=env.reset()
+	    temp_C=env.reset()
+
+	    state_off=np.concatenate((temp_D,temp_C,temp_B,temp_A),-1)
+
             meta_off = None if not hasattr(env, 'meta') else env.meta()
             print("Generating random rollouts: %d steps" % self.rand_rollouts.max_size)
             while not self.rand_rollouts.is_full():
                 act_idx = np.random.randint(0, env.action_space.n)
                 action = np.zeros(env.action_space.n)
                 action[act_idx] = 1
-                state, reward, terminal, _ = env.step(action.argmax())
-                time = 1
+                
+		if not hasattr(env,'meta'):
+			temp_A,reward_A, _, _ = env.step(action.argmax())
+			temp_B,reward_B, _, _ = env.step(action.argmax())
+			temp_C,reward_C,_,_=env.step(action.argmax())
+			temp_D,reward_D,terminal,info=env.step(action.argmax())
+
+			state=np.concatenate((temp_A,temp_B,temp_C,temp_D),-1)
+
+			reward=reward_A+reward_B+reward_C+reward_D
+                	time = 1
+		else:
+			state, reward,terminal,_,time=env.step(action.argmax())
                 self.rand_rollouts.add(state_off, action, reward, time, 
                         meta_off, terminal)
                 state_off = state

@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.rnn as rnn
 import math
+import time as tm
 
 act_fn = tf.nn.elu
 
@@ -423,6 +424,17 @@ class Model(object):
         sess = tf.get_default_session()
         feed_dict = {self.x: [ob]}
         for i in range(len(state_in)):
+	    #print "------------>>>>>>"
+	    #print "self elgnth:"
+	    #print len(self.state_in)
+	    #print "input length:"
+	    #print len(state_in)
+	    #print state_in[0]
+	    #print state_in[1]
+	    #print len(state_in)
+	    #print i
+	    #print state_in
+
             feed_dict[self.state_in[i]] = state_in[i]
         if self.meta_dim > 0:
             feed_dict[self.meta] = [meta]
@@ -437,7 +449,7 @@ class Model(object):
             state_out = out[1:]
             act = np.zeros_like(q)
             act[q.argmax()] = 1
-            return [act] + state_out
+            return [act, q] + state_out
 
     def update_state(self, ob, state_in=[], meta=None):
         sess = tf.get_default_session()

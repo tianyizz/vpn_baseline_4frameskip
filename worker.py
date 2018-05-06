@@ -12,6 +12,8 @@ from vpn import VPN
 from envs import create_env
 import util
 import numpy as np
+import os
+from gym import wrappers
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,6 +24,7 @@ def new_env(args):
         str(args.task), 
         args.remotes,
         config=config)
+    
     return env
 
 # Disables write_meta_graph argument, which freezes entire process and is mostly useless.
@@ -140,7 +143,13 @@ More tensorflow setup for data parallelism
 
 def evaluate(env, network, num_play=3000, eps=0.0):
     for iter in range(0, num_play):
-        last_state = env.reset()
+        state_A = env.reset()
+	state_B = env.reset()
+	state_C = env.reset()
+	state_D = env.reset()
+	
+	last_state = np.concatenate((state_A,state_B,state_C,state_D),-1)
+	
         last_features = network.get_initial_features()
         last_meta = None if not hasattr(env, 'meta') else env.meta()
         while True:
@@ -150,15 +159,23 @@ def evaluate(env, network, num_play=3000, eps=0.0):
                 if network.type == 'policy':
                     action, features = fetched[0], fetched[2:]
                 else:
-                    action, features = fetched[0], fetched[1:]
+                    action, features = fetched[0], fetched[2:]
             else:
                 act_idx = np.random.randint(0, env.action_space.n)
                 action = np.zeros(env.action_space.n)
                 action[act_idx] = 1
                 features = []
+		
+	    if not hasattr(env,'meta'):
+		state_D=np.copy(state_C)
+		state_C=np.copy(state_B)
+		state_B=np.copy(state_A)
+		state_A,reward,terminal,info=env.step(action.argmax())
+		state=np.concatenate((state_A,state_B,state_C,state_D),-1)
+            	time = 1
+	    else:
+		state, reward, terminal, info, time=env.step(action.argmax())	
 
-            state, reward, terminal, info = env.step(action.argmax())
-            time = 1
             last_state = state
             last_features = features
             last_meta = None if not hasattr(env, 'meta') else env.meta()
@@ -253,7 +270,7 @@ Setting up Tensorflow for data parallel work
     parser.add_argument('--job-name', default="worker", help='worker or ps')
     parser.add_argument('--num-workers', default=1, type=int, help='Number of workers')
     parser.add_argument('--num-ps', type=int, default=1, help="Number of parameter servers")
-    parser.add_argument('--log', default="/tmp/vpn", help='Log directory path')
+    parser.add_argument('--log', default="/tmp/vpn_2dmaze_nonchange", help='Log directory path')
     parser.add_argument('--env-id', default="maze", help='Environment id')
     parser.add_argument('-r', '--remotes', default=None,
                         help='References to environments to create (e.g. -r 20), '

@@ -6,6 +6,8 @@ import six.moves.queue as queue
 import threading
 import distutils.version
 
+from collections import deque
+
 use_tf12_api = distutils.version.LooseVersion(tf.VERSION) >= distutils.version.LooseVersion('0.12.0')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -99,8 +101,14 @@ The logic of the thread runner.  In brief, it constantly keeps on running
 the policy, and as long as the rollout exceeds a certain length, the thread
 runner appends the policy to the queue.
 """
-    last_state = env.reset()
+    obs = env.reset()
+    observations = deque([obs, obs, obs, obs])
+
+    last_state=np.concatenate(observations, -1)
     last_features = network.get_initial_features()
+    #print ("---------initial-feature-----------")
+    #print (last_features)
+
     last_meta = None if not hasattr(env, 'meta') else env.meta()
     if solver.use_target_network():
         last_target_features = solver.target_network.get_initial_features()
@@ -111,13 +119,18 @@ runner appends the policy to the queue.
 
         for _ in range(num_local_steps):
             value = None
-            
+            	
             # choose an action from the policy
             if not hasattr(solver, 'epsilon') or solver.epsilon() < np.random.uniform():
                 fetched = network.act(last_state, last_features,
                         meta=last_meta)
                 if network.type == 'policy':
                     action, value, features = fetched[0], fetched[1], fetched[2:]
+                if network.type == 'vpn':
+                    action, q_plan, features = fetched[0], fetched[1], fetched[2:]
+                    #print ("--------------test-----------")
+                    #print (q_plan.shape)
+                    #print (q_plan)
                 else:
                     action, features = fetched[0], fetched[1:]
             else: 
@@ -133,8 +146,16 @@ runner appends the policy to the queue.
                     features = []
 
             # argmax to convert from one-hot
-            state, reward, terminal, info = env.step(action.argmax())
-            time = 1
+            if not hasattr(env,'meta'):
+                obs, reward, terminal, info = env.step(action.argmax())
+                observations.pop()
+                observations.appendleft(obs)
+		time=1
+	    else:
+		state_temp,reward,terminal,info,time=env.step(action.argmax())
+
+            state = np.concatenate(observations, -1)
+	    
             if hasattr(env, 'atari'):
                 reward = np.clip(reward, -1, 1)
 
@@ -155,7 +176,9 @@ runner appends the policy to the queue.
 
             if terminal:
                 terminal_end = True
-                last_state = env.reset()
+		obs = env.reset() 
+    		observations = deque([obs, obs, obs, obs])
+    		last_state=np.concatenate(observations, -1)
                 last_features = network.get_initial_features()
                 last_meta = None if not hasattr(env, 'meta') else env.meta()
                 break
@@ -248,7 +271,7 @@ class AsyncSolver(object):
             self.local_steps = 0
     
     def define_summary(self):
-        summary.scalar("model/lr", self.learning_rate)
+        tf.summary.scalar("model/lr", self.learning_rate)
         if hasattr(self.env, 'tf_visualize'):
             tf.summary.image("model/state", self.env.tf_visualize(self.local_network.x), max_outputs=10)
         tf.summary.scalar("gradient/grad_norm", tf.global_norm(self.grads))

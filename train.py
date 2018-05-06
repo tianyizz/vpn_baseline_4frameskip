@@ -13,7 +13,7 @@ parser.add_argument('-r', '--remotes', default=None,
                     '(e.g. -r vnc://localhost:5900+15900,vnc://localhost:5901+15901).')
 parser.add_argument('-e', '--env-id', type=str, default="maze",
                     help="Environment id")
-parser.add_argument('-l', '--log', type=str, default="/scratch3/sniu/vpn/maze", 
+parser.add_argument('-l', '--log', type=str, default="/scratch3/tianyiz/vpn/maze_frameskip_4", 
                     help="Log directory path")
 parser.add_argument('-d', '--dry-run', action='store_true',
                     help="Print out commands rather than executing them")
